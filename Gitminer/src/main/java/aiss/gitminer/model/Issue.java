@@ -8,7 +8,10 @@ import javax.annotation.Generated;
 import javax.persistence.*;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "Issue")
@@ -18,8 +21,6 @@ public class Issue {
     @JsonProperty("id")
     private String id;
 
-    @JsonProperty("ref_id")
-    private String refId;
     @JsonProperty("title")
     private String title;
     @JsonProperty("description")
@@ -46,18 +47,29 @@ public class Issue {
     @JoinColumn(name = "assignee_id",referencedColumnName = "id")
     @OneToOne(cascade=CascadeType.ALL)
     private User assignee;
-    @JsonProperty("upvotes")
-    private Integer upvotes;
-    @JsonProperty("downvotes")
-    private Integer downvotes;
+    @JsonProperty("votes")
+    private int votes;
 
-    @JsonProperty("web_url")
-    private String webUrl;
 
     @JsonProperty("comments")
     @OneToMany(cascade = CascadeType.ALL)
     @JoinColumn(name = "issueId")
     private List<Comment> comments;
+
+    public Issue() {}
+
+    public Issue(String title, String description, String state, List<String> labels, User author, List<Comment> comments) {
+        this.title = title;
+        this.description = description;
+        this.state = state;
+        this.labels = labels;
+        this.id = UUID.randomUUID().toString();
+        this.votes = 0;
+        this.createdAt = LocalDateTime.now().toString();
+        this.author = author;
+        this.comments = comments;
+    }
+
 
     public String getId() {
         return id;
@@ -65,14 +77,6 @@ public class Issue {
 
     public void setId(String id) {
         this.id = id;
-    }
-
-    public String getRefId() {
-        return refId;
-    }
-
-    public void setRefId(String refId) {
-        this.refId = refId;
     }
 
     public String getTitle() {
@@ -147,30 +151,6 @@ public class Issue {
         this.assignee = assignee;
     }
 
-    public Integer getUpvotes() {
-        return upvotes;
-    }
-
-    public void setUpvotes(Integer upvotes) {
-        this.upvotes = upvotes;
-    }
-
-    public Integer getDownvotes() {
-        return downvotes;
-    }
-
-    public void setDownvotes(Integer downvotes) {
-        this.downvotes = downvotes;
-    }
-
-    public String getWebUrl() {
-        return webUrl;
-    }
-
-    public void setWebUrl(String webUrl) {
-        this.webUrl = webUrl;
-    }
-
     public List<Comment> getComments() {
         return comments;
     }
@@ -186,10 +166,6 @@ public class Issue {
         sb.append("id");
         sb.append('=');
         sb.append(((this.id == null) ? "<null>" : this.id));
-        sb.append(',');
-        sb.append("refId");
-        sb.append('=');
-        sb.append(((this.refId == null) ? "<null>" : this.refId));
         sb.append(',');
         sb.append("title");
         sb.append('=');
@@ -227,14 +203,6 @@ public class Issue {
         sb.append('=');
         sb.append(((this.assignee == null) ? "<null>" : this.assignee));
         sb.append(',');
-        sb.append("upvotes");
-        sb.append('=');
-        sb.append(((this.upvotes == null) ? "<null>" : this.upvotes));
-        sb.append(',');
-        sb.append("downvotes");
-        sb.append('=');
-        sb.append(((this.downvotes == null) ? "<null>" : this.downvotes));
-        sb.append(',');
         sb.append("comments");
         sb.append('=');
         sb.append(((this.comments == null) ? "<null>" : this.comments));
@@ -249,5 +217,11 @@ public class Issue {
     }
 
 
+    public int getVotes() {
+        return votes;
+    }
 
+    public void setVotes(int votes) {
+        this.votes = votes;
+    }
 }

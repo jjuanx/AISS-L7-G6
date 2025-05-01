@@ -8,6 +8,7 @@ import javax.persistence.Id;
 import javax.persistence.Table;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
+import java.util.UUID;
 
 @Entity
 @Table(name = "Commit")
@@ -30,20 +31,23 @@ public class Commit {
     @JsonProperty("authored_date")
     @NotEmpty(message = "Author date cannot be empty.")
     private String authoredDate;
-    @JsonProperty("committer_name")
-    @NotEmpty(message = "Committer name cannot be empty.")
-    private String committerName;
-    @JsonProperty("committer_email")
-    private String committerEmail;
-
-    @JsonProperty("committed_date")
-    @NotEmpty(message = "Committer date cannot be empty.")
-    private String committedDate;
 
     @JsonProperty("web_url")
     @NotEmpty(message = "URL cannot be empty." +
             "")
     private String webUrl;
+
+    public Commit(String title, String message, String authoredDate, String authorEmail, String authorName, String webUrl) {
+        this.id = UUID.randomUUID().toString();
+        this.title = title;
+        this.message = message;
+        this.authorName = authorName;
+        this.authorEmail = authorEmail;
+        this.authoredDate = authoredDate;
+        this.webUrl = webUrl;
+    }
+
+    public Commit() {}
 
     public String getId() {
         return id;
@@ -93,29 +97,7 @@ public class Commit {
         this.authoredDate = authoredDate;
     }
 
-    public String getCommitterName() {
-        return committerName;
-    }
 
-    public void setCommitterName(String committerName) {
-        this.committerName = committerName;
-    }
-
-    public String getCommitterEmail() {
-        return committerEmail;
-    }
-
-    public void setCommitterEmail(String committerEmail) {
-        this.committerEmail = committerEmail;
-    }
-
-    public String getCommittedDate() {
-        return committedDate;
-    }
-
-    public void setCommittedDate(String committedDate) {
-        this.committedDate = committedDate;
-    }
 
     public String getWebUrl() {
         return webUrl;
@@ -152,18 +134,6 @@ public class Commit {
         sb.append("authoredDate");
         sb.append('=');
         sb.append(((this.authoredDate == null) ? "<null>" : this.authoredDate));
-        sb.append(',');
-        sb.append("committerName");
-        sb.append('=');
-        sb.append(((this.committerName == null) ? "<null>" : this.committerName));
-        sb.append(',');
-        sb.append("committerEmail");
-        sb.append('=');
-        sb.append(((this.committerEmail == null) ? "<null>" : this.committerEmail));
-        sb.append(',');
-        sb.append("committedDate");
-        sb.append('=');
-        sb.append(((this.committedDate == null) ? "<null>" : this.committedDate));
         sb.append(',');
         sb.append("webUrl");
         sb.append('=');

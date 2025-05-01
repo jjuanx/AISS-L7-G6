@@ -8,6 +8,8 @@ import javax.annotation.Generated;
 import javax.persistence.*;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
+import java.time.LocalDate;
+import java.util.UUID;
 
 @Entity
 @Table(name = "Comment")
@@ -31,6 +33,11 @@ public class Comment {
     private String createdAt;
     @JsonProperty("updated_at")
     private String updatedAt;
+
+    public Comment() {
+        this.id = UUID.randomUUID().toString();
+        this.createdAt = LocalDate.now().toString();
+    }
 
     public String getId() {
         return id;
