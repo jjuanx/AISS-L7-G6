@@ -35,7 +35,6 @@ public class Comment {
     private String updatedAt;
 
     public Comment() {
-        this.id = UUID.randomUUID().toString();
         this.createdAt = LocalDate.now().toString();
     }
 

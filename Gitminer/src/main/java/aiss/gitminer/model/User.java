@@ -10,6 +10,7 @@ import javax.persistence.Id;
 import javax.persistence.Table;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
+import java.util.UUID;
 
 @Entity
 @Table(name = "GMUser")     // Watch out: User is a reserved keyword in H2
@@ -27,6 +28,16 @@ public class User {
     private String avatarUrl;
     @JsonProperty("web_url")
     private String webUrl;
+
+    public User() {}
+
+    public User(String id,String username, String name, String avatarUrl, String webUrl) {
+        this.id = id;
+        this.username = username;
+        this.name = name;
+        this.avatarUrl = avatarUrl;
+        this.webUrl = webUrl;
+    }
 
     public String getId() {
         return id;

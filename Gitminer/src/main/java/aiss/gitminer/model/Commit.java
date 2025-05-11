@@ -37,8 +37,8 @@ public class Commit {
             "")
     private String webUrl;
 
-    public Commit(String title, String message, String authoredDate, String authorEmail, String authorName, String webUrl) {
-        this.id = UUID.randomUUID().toString();
+    public Commit(String id, String title, String message, String authoredDate, String authorEmail, String authorName, String webUrl) {
+        this.id = id;
         this.title = title;
         this.message = message;
         this.authorName = authorName;

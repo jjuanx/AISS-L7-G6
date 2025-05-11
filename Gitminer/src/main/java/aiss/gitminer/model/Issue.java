@@ -20,6 +20,7 @@ public class Issue {
     @Id
     @JsonProperty("id")
     private String id;
+
     @JsonProperty("title")
     private String title;
     @JsonProperty("description")
@@ -57,12 +58,12 @@ public class Issue {
 
     public Issue() {}
 
-    public Issue(String title,String description, String state, List<String> labels, User author, List<Comment> comments) {
+    public Issue(String title, String description, String state, List<String> labels, String id, User author, List<Comment> comments) {
         this.title = title;
         this.description = description;
         this.state = state;
         this.labels = labels;
-        this.id = UUID.randomUUID().toString();
+        this.id = id;
         this.votes = 0;
         this.createdAt = LocalDateTime.now().toString();
         this.author = author;
