@@ -8,6 +8,11 @@ import aiss.gitminer.repositories.CommentRepository;
 import aiss.gitminer.repositories.IssueRepository;
 import aiss.gitminer.repositories.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -33,6 +38,13 @@ public class UserController {
             summary = "Retrieve all Users",
             tags = {"get"}
     )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "List of users",
+                    content = { @Content(mediaType = "application/json", schema = @Schema(implementation = User.class)) }
+            )
+    })
     @GetMapping
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -44,8 +56,20 @@ public class UserController {
             description = "Get a User object by specifying its id",
             tags = {"get"}
     )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "User found",
+                    content = { @Content(mediaType = "application/json", schema = @Schema(implementation = User.class)) }
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "User not found",
+                    content = @Content(schema = @Schema())
+            )
+    })
     @GetMapping("/{id}")
-    public User getUserById(@PathVariable String id) {
+    public User getUserById(@Parameter(description = "id of user to be searched", required = true)@PathVariable String id) {
         Optional<User> user = userRepository.findById(id);
         return user.orElse(null);
     }
@@ -69,9 +93,21 @@ public class UserController {
             description = "Delete a User object by specifying its id",
             tags = {"delete"}
     )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "User successfully deleted",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "User not found",
+                    content = @Content(schema = @Schema())
+            )
+    })
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping("/{id}")
-    public void deleteUser(@PathVariable String id) throws UserNotFoundException {
+    public void deleteUser(@Parameter(description = "id of user to be deleted", required = true)@PathVariable String id) throws UserNotFoundException {
         if (userRepository.existsById(id)) {
             User user = userRepository.findById(id).get();
             List<Issue> issues = issueRepository.findAll()

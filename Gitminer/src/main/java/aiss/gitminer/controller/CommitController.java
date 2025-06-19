@@ -2,11 +2,17 @@ package aiss.gitminer.controller;
 
 import aiss.gitminer.exception.CommitNotFoundException;
 import aiss.gitminer.exception.ProjectNotFoundException;
+import aiss.gitminer.model.Comment;
 import aiss.gitminer.model.Commit;
 import aiss.gitminer.model.Project;
 import aiss.gitminer.repositories.CommitRepository;
 import aiss.gitminer.repositories.ProjectRepository;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -33,6 +39,13 @@ public class CommitController {
             summary = "Retrieve all Commits",
             tags = {"get"}
     )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "List of commits",
+                    content = { @Content(mediaType = "application/json", schema = @Schema(implementation = Commit.class)) }
+            )
+    })
     @GetMapping("/commits")
     public List<Commit> getAllCommits() {
         return commitRepository.findAll();
@@ -44,8 +57,20 @@ public class CommitController {
             description = "Get a Commit object by specifying its id",
             tags = {"get"}
     )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Commit found",
+                    content = { @Content(mediaType = "application/json", schema = @Schema(implementation = Commit.class)) }
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Commit not found",
+                    content = @Content(schema = @Schema())
+            )
+    })
     @GetMapping("/commits/{id}")
-    public Commit getCommitById(@PathVariable String id) throws CommitNotFoundException {
+    public Commit getCommitById(@Parameter(description = "id of commit to be searched", required = true)@PathVariable String id) throws CommitNotFoundException {
         Optional<Commit> commit = commitRepository.findById(id);
         if (!commit.isPresent()) {
             throw new CommitNotFoundException();
@@ -59,8 +84,20 @@ public class CommitController {
             description = "Get all Commits object by specifying its Project id",
             tags = {"get"}
     )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Commit found",
+                    content = { @Content(mediaType = "application/json", schema = @Schema(implementation = Commit.class)) }
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Commit not found",
+                    content = @Content(schema = @Schema())
+            )
+    })
     @GetMapping("/projects/{projectId}/commits")
-    public List<Commit> getAllCommitsByProjectId(@PathVariable(value="projectId") String projectId) throws ProjectNotFoundException{
+    public List<Commit> getAllCommitsByProjectId(@Parameter(description = "id of the project whose commits are to be retrieved", required = true)@PathVariable(value="projectId") String projectId) throws ProjectNotFoundException{
         Optional<Project> project = projectRepository.findById(projectId);
         if(!project.isPresent()){
             throw new ProjectNotFoundException();
@@ -75,9 +112,30 @@ public class CommitController {
             description = "Create a Commit object by specifying its content and his Project id",
             tags = {"create"}
     )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Commit successfully created",
+                    content = { @Content(mediaType = "application/json", schema = @Schema(implementation = Commit.class)) }
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Project not found",
+                    content = @Content(schema = @Schema())
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid input data",
+                    content = @Content(schema = @Schema())
+            )
+    })
     @ResponseStatus(HttpStatus.CREATED)
     @PostMapping("/projects/{projectId}/commits")
-    public Commit createCommit(@Valid @RequestBody Commit commit, @PathVariable String projectId) throws ProjectNotFoundException {
+    public Commit createCommit(
+            @Parameter(description = "Commit object to be created", required = true)
+            @Valid @RequestBody Commit commit,
+            @Parameter(description = "id of the project to associate the commit with", required = true)
+            @PathVariable String projectId) throws ProjectNotFoundException {
         Optional < Project> project = projectRepository.findById(projectId);
         if (!project.isPresent()) {
             throw new ProjectNotFoundException();
@@ -101,9 +159,21 @@ public class CommitController {
             description = "Delete a Commit object by specifying its id",
             tags = {"delete"}
     )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Commit successfully deleted",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Commit not found",
+                    content = @Content(schema = @Schema())
+            )
+    })
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping("/commits/{id}")
-    public void deleteCommit(@PathVariable String id) throws CommitNotFoundException {
+    public void deleteCommit(@Parameter(description = "id of commit to be deleted", required = true)@PathVariable String id) throws CommitNotFoundException {
         if(commitRepository.existsById(id)) {
             commitRepository.deleteById(id);
         }else{
@@ -117,9 +187,31 @@ public class CommitController {
             description = "Update a Commit object by specifying its id",
             tags = {"update"}
     )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Commit successfully updated",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Commit not found",
+                    content = @Content(schema = @Schema())
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid input data",
+                    content = @Content(schema = @Schema())
+            )
+    })
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PutMapping("/commits/{id}")
-    public void updateCommit(@PathVariable String id, @RequestBody Commit commit) throws CommitNotFoundException {
+    public void updateCommit(
+            @Parameter(description = "id of commit to be updated", required = true)
+            @PathVariable String id,
+            @Parameter(description = "Commit object to be updated", required = true)
+            @RequestBody Commit commit
+    ) throws CommitNotFoundException {
         Optional <Commit> commitData = commitRepository.findById(id);
         if (!commitData.isPresent()) {
             throw new CommitNotFoundException();
