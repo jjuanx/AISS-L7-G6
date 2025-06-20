@@ -49,8 +49,8 @@ public class ProjectController {
     public List<Project> getAllProjects(
             @Parameter(description = "Page number to be retrieved") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Number of projects per page") @RequestParam(defaultValue = "10") int size,
-            @Parameter(description = "attribute to be filtered") @RequestParam(defaultValue = "10") String name,
-            @Parameter(description = "order of the request retrieved") @RequestParam(defaultValue = "10") String order
+            @Parameter(description = "attribute to be filtered") @RequestParam(required = false) String name,
+            @Parameter(description = "order of the request retrieved") @RequestParam(required = false) String order
     ) {
         Pageable paging;
 
