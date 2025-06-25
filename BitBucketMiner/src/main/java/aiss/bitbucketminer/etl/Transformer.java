@@ -98,7 +98,7 @@ public class Transformer {
 
         String body = (bitbucketComment.getContent() != null && bitbucketComment.getContent().getRaw() != null && !bitbucketComment.getContent().getRaw().isBlank())
                 ? bitbucketComment.getContent().getRaw()
-                : "No content"; // <= ⚠️ Esto previene el error
+                : "No content";
 
         comment.setBody(body);
 

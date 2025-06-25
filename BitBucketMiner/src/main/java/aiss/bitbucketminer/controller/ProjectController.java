@@ -30,15 +30,7 @@ public class ProjectController {
         return commitService.fetchCommitsFromBitbucket(workspace, repoSlug, nCommits, maxPages);
     }
 
-    @PostMapping("/{workspace}/{repoSlug}/commits")
-    public void sendCommits(
-            @PathVariable String workspace,
-            @PathVariable String repoSlug,
-            @RequestParam(defaultValue = "5") int nCommits,
-            @RequestParam(defaultValue = "2") int maxPages
-    ) {
-        commitService.fetchAndSend(workspace, repoSlug, nCommits, maxPages);
-    }
+
 
     @GetMapping("/{workspace}/{repoSlug}/issues")
     public List<Issue> previewIssues(
@@ -50,15 +42,7 @@ public class ProjectController {
         return issueService.fetchIssuesFromBitbucket(workspace, repoSlug, nIssues, maxPages);
     }
 
-    @PostMapping("/{workspace}/{repoSlug}/issues")
-    public void sendIssues(
-            @PathVariable String workspace,
-            @PathVariable String repoSlug,
-            @RequestParam(defaultValue = "5") int nIssues,
-            @RequestParam(defaultValue = "2") int maxPages
-    ) {
-        issueService.fetchAndSend(workspace, repoSlug, nIssues, maxPages);
-    }
+
 
     @Autowired
     ProjectService projectService;
@@ -71,16 +55,7 @@ public class ProjectController {
             @RequestParam(defaultValue = "5") int nIssues,
             @RequestParam(defaultValue = "2") int maxPages
     ) {
-        // Traemos el Project base
-        Project project = projectService.fetchProjectFromBitbucket(workspace, repoSlug);
-
-        // Traemos Commits
-        List<Commit> commits = commitService.fetchCommitsFromBitbucket(workspace, repoSlug, nCommits, maxPages);
-        project.setCommits(commits);
-
-        // Traemos Issues
-        List<Issue> issues = issueService.fetchIssuesFromBitbucket(workspace, repoSlug, nIssues, maxPages);
-        project.setIssues(issues);
+        Project project = projectService.fetchProjectFromBitbucket(workspace, repoSlug, nCommits, maxPages, nIssues);
 
         return project;
     }
@@ -95,13 +70,7 @@ public class ProjectController {
             @RequestParam(defaultValue = "2") int maxPages
     ) {
         // Creamos el Project completo como en el GET
-        Project project = projectService.fetchProjectFromBitbucket(workspace, repoSlug);
-
-        List<Commit> commits = commitService.fetchCommitsFromBitbucket(workspace, repoSlug, nCommits, maxPages);
-        project.setCommits(commits);
-
-        List<Issue> issues = issueService.fetchIssuesFromBitbucket(workspace, repoSlug, nIssues, maxPages);
-        project.setIssues(issues);
+        Project project = projectService.fetchProjectFromBitbucket(workspace, repoSlug, nCommits, maxPages, nIssues);
 
         // Lo enviamos a GitMiner
         projectService.sendProjectToGitMiner(project);

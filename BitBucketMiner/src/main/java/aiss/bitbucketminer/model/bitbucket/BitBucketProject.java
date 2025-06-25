@@ -2,7 +2,7 @@ package aiss.bitbucketminer.model.bitbucket;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonIgnoreProperties(ignoreUnknown = true)//--------
 public class BitBucketProject {
 
     private String uuid;

@@ -59,18 +59,6 @@ public class CommitService {
         return result;
     }
 
-    public void sendCommitsToGitMiner(List<Commit> commits) {
-        for (Commit commit : commits) {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<Commit> request = new HttpEntity<>(commit, headers);
-            restTemplate.postForEntity(gitminerUrl + "/commits", request, Void.class);
-        }
-    }
 
-    public void fetchAndSend(String workspace, String repoSlug, int nCommits, int maxPages) {
-        List<Commit> commits = fetchCommitsFromBitbucket(workspace, repoSlug, nCommits, maxPages);
-        sendCommitsToGitMiner(commits);
-    }
 }
 
