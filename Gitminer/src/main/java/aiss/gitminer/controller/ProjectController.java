@@ -194,6 +194,8 @@ public class ProjectController {
         Project newProject = projectData.get();
         newProject.setName(project.getName());
         newProject.setWebUrl(project.getWebUrl());
+        newProject.setCommits(project.getCommits());
+        newProject.setIssues(project.getIssues());
         projectRepository.save(newProject);
     }
 }

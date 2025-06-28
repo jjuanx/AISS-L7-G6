@@ -15,6 +15,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -47,8 +51,29 @@ public class CommitController {
             )
     })
     @GetMapping("/commits")
-    public List<Commit> getAllCommits() {
-        return commitRepository.findAll();
+    public List<Commit> getAllCommits(
+            @Parameter(description = "Page number to be retrieved") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Number of projects per page") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "attribute to be filtered") @RequestParam(required = false) String title,
+            @Parameter(description = "order of the request retrieved") @RequestParam(required = false) String order
+    ) {
+        Pageable paging;
+
+        if(order != null) {
+            if (order.startsWith("-")) {
+                paging = PageRequest.of(page, size, Sort.by(order.substring(1)).descending());
+            } else {
+                paging = PageRequest.of(page, size, Sort.by(order).ascending());
+            }
+        }else {
+            paging = PageRequest.of(page, size);
+        }
+        Page<Commit> pageCommits;
+        if (title != null)
+            pageCommits = commitRepository.findByTitle(title, paging);
+        else
+            pageCommits = commitRepository.findAll(paging);
+        return pageCommits.getContent();
     }
 
     // GET http://localhost:8080/gitminer/commits/{id}

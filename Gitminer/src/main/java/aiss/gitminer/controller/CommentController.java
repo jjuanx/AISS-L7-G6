@@ -4,6 +4,7 @@ import aiss.gitminer.exception.CommentNotFoundException;
 import aiss.gitminer.exception.IssueNotFoundException;
 import aiss.gitminer.model.Comment;
 import aiss.gitminer.model.Issue;
+import aiss.gitminer.model.Project;
 import aiss.gitminer.repositories.CommentRepository;
 import aiss.gitminer.repositories.IssueRepository;
 import aiss.gitminer.repositories.ProjectRepository;
@@ -15,6 +16,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -47,8 +52,29 @@ public class CommentController {
             )
     })
     @GetMapping("/comments")
-    public List<Comment> getAllComments (){
-        return commentRepository.findAll();
+    public List<Comment> getAllComments(
+            @Parameter(description = "Page number to be retrieved") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Number of projects per page") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "attribute to be filtered") @RequestParam(required = false) String author,
+            @Parameter(description = "order of the request retrieved") @RequestParam(required = false) String order
+    ) {
+        Pageable paging;
+
+        if(order != null) {
+            if (order.startsWith("-")) {
+                paging = PageRequest.of(page, size, Sort.by(order.substring(1)).descending());
+            } else {
+                paging = PageRequest.of(page, size, Sort.by(order).ascending());
+            }
+        }else {
+            paging = PageRequest.of(page, size);
+        }
+        Page<Comment> pageComments;
+        if (author != null)
+            pageComments = commentRepository.findByAuthor(author, paging);
+        else
+            pageComments = commentRepository.findAll(paging);
+        return pageComments.getContent();
     }
 
     // GET http://localhost:8080/gitminer/comments/{id}
@@ -216,9 +242,11 @@ public class CommentController {
         if (!commenData.isPresent()) {
             throw new CommentNotFoundException();
         }
-        Comment _comment = commenData.get();
-        _comment.setBody(comment.getBody());
-        _comment.setUpdatedAt(LocalDateTime.now().toString());
-        commentRepository.save(_comment);
+        Comment newComment = commenData.get();
+        newComment.setUpdatedAt(LocalDateTime.now().toString());
+        newComment.setAuthor(comment.getAuthor());
+        newComment.setBody(comment.getBody());
+        newComment.setCreatedAt(comment.getCreatedAt());
+        commentRepository.save(newComment);
     }
 }

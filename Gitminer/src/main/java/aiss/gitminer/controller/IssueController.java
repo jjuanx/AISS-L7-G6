@@ -3,6 +3,7 @@ package aiss.gitminer.controller;
 import aiss.gitminer.exception.IssueNotFoundException;
 import aiss.gitminer.exception.ProjectNotFoundException;
 import aiss.gitminer.model.Comment;
+import aiss.gitminer.model.Commit;
 import aiss.gitminer.model.Issue;
 import aiss.gitminer.model.Project;
 import aiss.gitminer.repositories.IssueRepository;
@@ -15,6 +16,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -47,8 +52,35 @@ public class IssueController {
             )
     })
     @GetMapping("/issues")
-    public List<Issue> getAllIssues() {
-        return issueRepository.findAll();
+    public List<Issue> getAllIssues(
+            @Parameter(description = "Page number to be retrieved") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Number of projects per page") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "attribute to be filtered") @RequestParam(required = false) String authorId,
+            @Parameter(description = "attribute to be filtered") @RequestParam(required = false) String state,
+            @Parameter(description = "order of the request retrieved") @RequestParam(required = false) String order
+    ) {
+        Pageable paging;
+
+        if(order != null) {
+            if (order.startsWith("-")) {
+                paging = PageRequest.of(page, size, Sort.by(order.substring(1)).descending());
+            } else {
+                paging = PageRequest.of(page, size, Sort.by(order).ascending());
+            }
+        }else {
+            paging = PageRequest.of(page, size);
+        }
+        Page<Issue> pageIssues;
+        if (authorId != null && state != null) {
+            pageIssues = issueRepository.findByStateAndAuthorId(state, authorId, paging);
+        } else if (authorId != null && state == null) {
+            pageIssues = issueRepository.findByAuthorId(authorId, paging);
+        } else if (authorId == null && state != null) {
+            pageIssues = issueRepository.findByState(state, paging);
+        } else {
+            pageIssues = issueRepository.findAll(paging);
+        }
+        return pageIssues.getContent();
     }
 
     // GET http://localhost:8080/gitminer/issues/{id}
