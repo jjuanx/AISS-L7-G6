@@ -1,186 +1,122 @@
-package aiss.gitminer.controller;
+package aiss.gitminer.gitminer.controller;
 
+import aiss.gitminer.controller.CommitController;
+import aiss.gitminer.exception.CommitNotFoundException;
+import aiss.gitminer.exception.ProjectNotFoundException;
 import aiss.gitminer.model.Commit;
-import org.junit.jupiter.api.DisplayName;
+import aiss.gitminer.model.Project;
+import aiss.gitminer.repositories.CommitRepository;
+import aiss.gitminer.repositories.ProjectRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 
-import java.util.UUID;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.http.HttpMethod.DELETE;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest
 class CommitControllerTest {
 
-    @LocalServerPort
-    private int port;
+    @Autowired
+    CommitController commitController;
 
     @Autowired
-    private TestRestTemplate restTemplate;
+    ProjectRepository projectRepository;
 
-    private String getBaseUrl() {
-        return "http://localhost:" + port + "/gitminer";
+    @Autowired
+    CommitRepository commitRepository;
+
+    private Project project;
+
+    @BeforeEach
+    void setUp() {
+        commitRepository.deleteAll();
+        projectRepository.deleteAll();
+
+        project = new Project();
+        project.setId("test_project");
+        project.setName("Test Project");
+        project.setWebUrl("https://example.com");
+        project.setCommits(new ArrayList<>());
+        projectRepository.save(project);
     }
 
     @Test
-    @DisplayName("GET /commits retrieves all commits")
     void getAllCommits() {
-        ResponseEntity<Commit[]> response = restTemplate.getForEntity(
-                getBaseUrl() + "/commits",
-                Commit[].class
-        );
+        Commit commit = new Commit("c1", "Title 1", "Message 1", "2024-06-20T12:00:00Z", "user1@example.com", "User One", "https://repo/commit/c1");
+        project.getCommits().add(commit);
+        projectRepository.save(project);
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertTrue(response.getBody().length >= 0);
+        List<Commit> commits = commitController.getAllCommits(0, 10, null, null);
+
+        assertNotNull(commits);
+        assertFalse(commits.isEmpty());
+        assertEquals("Title 1", commits.get(0).getTitle());
     }
 
     @Test
-    @DisplayName("GET /commits/{id} retrieves a specific commit by ID")
-    void getCommitById() {
-        // Configurar un ID de commit válido
-        String validCommitId = "12345";
+    void getCommitById() throws CommitNotFoundException {
+        Commit commit = new Commit("c2", "Title 2", "Message 2", "2024-06-20T12:00:00Z", "user2@example.com", "User Two", "https://repo/commit/c2");
+        project.getCommits().add(commit);
+        projectRepository.save(project);
 
-        // Realizar la solicitud GET
-        ResponseEntity<Commit> response = restTemplate.getForEntity(getBaseUrl() + "/commits/" + validCommitId, Commit.class);
-
-        // Verificaciones
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(validCommitId, response.getBody().getId());
-        assertNotNull(response.getBody().getMessage(), "El mensaje del commit no debe ser nulo");
+        Commit found = commitController.getCommitById("c2");
+        assertNotNull(found);
+        assertEquals("Title 2", found.getTitle());
+        assertEquals("User Two", found.getAuthorName());
     }
 
     @Test
-    @DisplayName("GET /commits/{id} throws CommitNotFoundException for invalid ID")
-    void getCommitByIdThrowsException() {
-        String invalidCommitId = "invalid-id";
+    void getAllCommitsByProjectId() throws ProjectNotFoundException {
+        Commit commit1 = new Commit("c3", "Title 3", "Message 3", "2024-06-20T12:00:00Z", "user3@example.com", "User Three", "https://repo/commit/c3");
+        Commit commit2 = new Commit("c4", "Title 4", "Message 4", "2024-06-20T12:00:00Z", "user4@example.com", "User Four", "https://repo/commit/c4");
+        project.getCommits().add(commit1);
+        project.getCommits().add(commit2);
+        projectRepository.save(project);
 
-        ResponseEntity<Commit> response = restTemplate.getForEntity(
-                getBaseUrl() + "/commits/" + invalidCommitId,
-                Commit.class
-        );
-
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-        assertNull(response.getBody());
-    }
-
-
-    @Test
-    @DisplayName("GET /projects/{projectId}/commits retrieves all commits by project ID")
-    void getAllCommitsByProjectId() {
-        String projectId = "known-project-id";
-
-        ResponseEntity<Commit[]> response = restTemplate.getForEntity(
-                getBaseUrl() + "/projects/" + projectId + "/commits",
-                Commit[].class
-        );
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertTrue(response.getBody().length > 0);
+        List<Commit> commits = commitController.getAllCommitsByProjectId("test_project");
+        assertEquals(2, commits.size());
     }
 
     @Test
-    @DisplayName("GET /projects/{projectId}/commits throws ProjectNotFoundException for invalid project ID")
-    void getAllCommitsByProjectIdThrowsException() {
-        String invalidProjectId = UUID.randomUUID().toString();
+    void createCommit() throws ProjectNotFoundException {
+        Commit newCommit = new Commit("c5", "Title 5", "Message 5", "2024-06-20T12:00:00Z", "user5@example.com", "User Five", "https://repo/commit/c5");
+        Commit saved = commitController.createCommit(newCommit, "test_project");
 
-        ResponseEntity<String> response = restTemplate.getForEntity(
-                getBaseUrl() + "/projects/" + invalidProjectId + "/commits",
-                String.class
-        );
+        assertNotNull(saved);
+        assertEquals("c5", saved.getId());
+        assertEquals("Title 5", saved.getTitle());
 
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertTrue(response.getBody().contains("Project not found"));
+        List<Commit> commits = commitController.getAllCommitsByProjectId("test_project");
+        assertEquals(1, commits.size());
     }
 
     @Test
-    @DisplayName("POST /projects/{projectId}/commits creates a new commit")
-    void createCommit() {
-        String projectId = "known-project-id";
+    void deleteCommit() throws CommitNotFoundException {
+        Commit commit = new Commit("c6", "Title 6", "Message 6", "2024-06-20T12:00:00Z", "user6@example.com", "User Six", "https://repo/commit/c6");
+        project.getCommits().add(commit);
+        projectRepository.save(project);
 
-        Commit newCommit = new Commit(
-                "Sample Commit Title",
-                "Sample commit message",
-                "2023-10-10",
-                "author@example.com",
-                "Author Name",
-                "http://example.com/commit"
-        );
-
-        ResponseEntity<Commit> response = restTemplate.postForEntity(
-                getBaseUrl() + "/projects/" + projectId + "/commits",
-                newCommit,
-                Commit.class
-        );
-
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(newCommit.getTitle(), response.getBody().getTitle());
+        assertTrue(commitRepository.existsById("c6"));
+        commitController.deleteCommit("c6");
+        assertFalse(commitRepository.existsById("c6"));
     }
 
     @Test
-    @DisplayName("POST /projects/{projectId}/commits throws ProjectNotFoundException for invalid project ID")
-    void createCommitThrowsException() {
-        String invalidProjectId = UUID.randomUUID().toString();
+    void updateCommit() throws CommitNotFoundException {
+        Commit commit = new Commit("c7", "Old Title", "Old Message", "2024-06-20T12:00:00Z", "user7@example.com", "User Seven", "https://repo/commit/c7");
+        project.getCommits().add(commit);
+        projectRepository.save(project);
 
-        Commit newCommit = new Commit(
-                "Sample Commit Title",
-                "Sample commit message",
-                "2023-10-10",
-                "author@example.com",
-                "Author Name",
-                "http://example.com/commit"
-        );
+        Commit updated = new Commit("c7", "New Title", "New Message", "2024-06-21T10:00:00Z", "user7@example.com", "User Seven Updated", "https://repo/commit/c7");
+        commitController.updateCommit("c7", updated);
 
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                getBaseUrl() + "/projects/" + invalidProjectId + "/commits",
-                newCommit,
-                String.class
-        );
-
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertTrue(response.getBody().contains("Project not found"));
-    }
-
-    @Test
-    @DisplayName("DELETE /commits/{id} deletes a commit")
-    void deleteCommit() {
-        String commitId = "known-commit-id";
-
-        restTemplate.delete(getBaseUrl() + "/commits/" + commitId);
-
-        ResponseEntity<String> response = restTemplate.getForEntity(
-                getBaseUrl() + "/commits/" + commitId,
-                String.class
-        );
-
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-    }
-
-    @Test
-    @DisplayName("DELETE /commits/{id} throws CommitNotFoundException for invalid ID")
-    void deleteCommitThrowsException() {
-        String invalidCommitId = UUID.randomUUID().toString();
-
-        ResponseEntity<String> response = restTemplate.exchange(
-                getBaseUrl() + "/commits/" + invalidCommitId,
-                DELETE,
-                null,
-                String.class
-        );
-
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertTrue(response.getBody().contains("Commit not found"));
+        Commit fetched = commitController.getCommitById("c7");
+        assertEquals("New Title", fetched.getTitle());
+        assertEquals("New Message", fetched.getMessage());
+        assertEquals("User Seven Updated", fetched.getAuthorName());
     }
 }

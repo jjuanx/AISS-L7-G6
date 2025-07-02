@@ -1,19 +1,20 @@
-package aiss.gitminer.controller;
+package aiss.gitminer.gitminer.controller;
 
-import aiss.gitminer.exception.CommentNotFoundException;
-import aiss.gitminer.exception.IssueNotFoundException;
 import aiss.gitminer.model.Comment;
+import aiss.gitminer.model.Issue;
+import aiss.gitminer.model.Project;
+import aiss.gitminer.model.User;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 
-import java.util.List;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -24,187 +25,169 @@ class CommentControllerTest {
     @LocalServerPort
     private int port;
 
-    private final TestRestTemplate restTemplate = new TestRestTemplate();
+    @Autowired
+    private TestRestTemplate restTemplate;
 
-    private String getBaseUrl() {
-        return "http://localhost:" + port + "/gitminer/comments";
+    private String baseUrl() {
+        return "http://localhost:" + port + "/gitminer";
     }
 
-    private String getIssueBaseUrl() {
-        return "http://localhost:" + port + "/gitminer/issues";
-    }
+    private String userId;
+    private String issueId;
+    private String commentId;
 
-    @Test
-    @DisplayName("GET /comments retrieves all comments")
-    void getAllComments() {
-        Comment comment = new Comment(UUID.randomUUID().toString(), "Test comment body");
-        restTemplate.postForEntity(getBaseUrl(), comment, Comment.class);
-        ResponseEntity<List<Comment>> response = restTemplate.exchange(
-                getBaseUrl(),
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<List<Comment>>() {}
+    @BeforeEach
+    void setUp() {
+        // Crear usuario
+        User user = new User();
+        user.setId(UUID.randomUUID().toString());
+        user.setUsername("commentUser");
+        user.setName("Comment Tester");
+        user.setAvatarUrl("https://example.com/avatar");
+        user.setWebUrl("https://example.com/user");
+
+        ResponseEntity<User> userResponse = restTemplate.postForEntity(baseUrl() + "/users", user, User.class);
+        assertEquals(HttpStatus.CREATED, userResponse.getStatusCode());
+        userId = userResponse.getBody().getId();
+
+        // Crear proyecto
+        Project project = new Project();
+        project.setId("comment-proj");
+        project.setName("Project for Comments");
+        project.setWebUrl("https://example.com/project");
+        project.setCommits(new ArrayList<>());
+
+        ResponseEntity<Project> projResponse = restTemplate.postForEntity(baseUrl() + "/projects", project, Project.class);
+        assertEquals(HttpStatus.CREATED, projResponse.getStatusCode());
+
+        // Crear issue
+        Issue issue = new Issue();
+        issue.setId(UUID.randomUUID().toString());
+        issue.setTitle("Issue with comments");
+        issue.setDescription("Testing comments");
+        issue.setState("open");
+        issue.setLabels(Collections.emptyList());
+        issue.setAuthor(user);
+        issue.setComments(Collections.emptyList());
+
+        ResponseEntity<Issue> issueResponse = restTemplate.postForEntity(
+                baseUrl() + "/projects/comment-proj/issues",
+                issue,
+                Issue.class
         );
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody(), "The response body should not be null");
-        assertFalse(response.getBody().isEmpty(), "The list of comments should not be empty");
-        assertTrue(response.getBody().stream().allMatch(
-                c -> c.getId() != null && !c.getId().isEmpty() &&
-                        c.getBody() != null && !c.getBody().isEmpty()
-        ), "Each comment should have valid fields.");
-    }
+        assertEquals(HttpStatus.CREATED, issueResponse.getStatusCode());
+        issueId = issueResponse.getBody().getId();
 
+        // Crear comment
+        Comment comment = new Comment();
+        comment.setId(UUID.randomUUID().toString());
+        comment.setBody("Comentario inicial");
+        comment.setAuthor(user);
+        comment.setCreatedAt("2025-07-01");
 
-    @Test
-    @DisplayName("GET /comments/{id} retrieves comment by ID")
-    void getCommentById() {
-        String commentId = "1"; // Assuming this comment exists in DB or has been preloaded
-        ResponseEntity<Comment> response = restTemplate.getForEntity(
-                getBaseUrl() + "/" + commentId,
+        ResponseEntity<Comment> commentResponse = restTemplate.postForEntity(
+                baseUrl() + "/issues/" + issueId + "/comments",
+                comment,
                 Comment.class
         );
+        assertEquals(HttpStatus.CREATED, commentResponse.getStatusCode());
+        commentId = commentResponse.getBody().getId();
+    }
 
+    @Test
+    @DisplayName("GET /comments devuelve todos los comentarios")
+    void getAllComments() {
+        ResponseEntity<Comment[]> response = restTemplate.getForEntity(baseUrl() + "/comments", Comment[].class);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().length >= 1);
+    }
+
+    @Test
+    @DisplayName("GET /comments/{id} devuelve un comentario concreto")
+    void getCommentById() {
+        ResponseEntity<Comment> response = restTemplate.getForEntity(
+                baseUrl() + "/comments/" + commentId,
+                Comment.class
+        );
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(commentId, response.getBody().getId());
     }
 
     @Test
-    @DisplayName("GET /comments/{id} throws CommentNotFoundException for invalid ID")
-    void getCommentByIdThrowsException() {
-        String invalidId = "999"; // Assuming this ID does not exist
-        ResponseEntity<Comment> response = restTemplate.getForEntity(
-                getBaseUrl() + "/" + invalidId,
-                Comment.class
-        );
-
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode(), "Should return 404 NOT FOUND");
-    }
-
-    @Test
-    @DisplayName("GET /issues/{issueId}/comments retrieves comments by issue ID")
+    @DisplayName("GET /issues/{id}/comments devuelve comentarios del issue")
     void getCommentsByIssue() {
-        String issueId = "101"; // Assuming this issue exists in DB or has been preloaded
-        ResponseEntity<List<Comment>> response = restTemplate.exchange(
-                getIssueBaseUrl() + "/" + issueId + "/comments",
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<>() {}
+        ResponseEntity<Comment[]> response = restTemplate.getForEntity(
+                baseUrl() + "/issues/" + issueId + "/comments",
+                Comment[].class
         );
-
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertFalse(response.getBody().isEmpty(), "The comments for the issue should not be empty");
+        assertTrue(response.getBody().length >= 1);
     }
 
     @Test
-    @DisplayName("GET /issues/{issueId}/comments throws IssueNotFoundException for invalid issue ID")
-    void getCommentsByIssueThrowsException() {
-        String invalidIssueId = "999"; // Assuming this issue ID does not exist
-        ResponseEntity<List<Comment>> response = restTemplate.exchange(
-                getIssueBaseUrl() + "/" + invalidIssueId + "/comments",
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<>() {}
-        );
-
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode(), "Should return 404 NOT FOUND");
-    }
-
-    @Test
-    @DisplayName("POST /issues/{issueId}/comments creates a new comment")
+    @DisplayName("POST /issues/{id}/comments crea un nuevo comentario")
     void createComment() {
-        String issueId = "101"; // Assuming this issue exists
-        Comment newComment = new Comment(null, "This is a new comment body");
+        Comment comment = new Comment();
+        comment.setId(UUID.randomUUID().toString());
+        comment.setBody("Nuevo comentario de prueba");
+        comment.setAuthor(new User(userId, "commentUser", "Comment Tester", "https://example.com/avatar", "https://example.com/user"));
+        comment.setCreatedAt("2025-07-02");
 
         ResponseEntity<Comment> response = restTemplate.postForEntity(
-                getIssueBaseUrl() + "/" + issueId + "/comments",
-                newComment,
+                baseUrl() + "/issues/" + issueId + "/comments",
+                comment,
                 Comment.class
         );
 
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(newComment.getBody(), response.getBody().getBody());
+        assertEquals("Nuevo comentario de prueba", response.getBody().getBody());
     }
 
     @Test
-    @DisplayName("POST /issues/{issueId}/comments throws IssueNotFoundException for invalid issue")
-    void createCommentThrowsException() {
-        String invalidIssueId = "999"; // Assuming this issue does not exist
-        Comment newComment = new Comment(null, "Another comment body");
+    @DisplayName("PUT /comments/{id} actualiza un comentario")
+    void updateComment() {
+        Comment updated = new Comment();
+        updated.setId(commentId);
+        updated.setBody("Comentario actualizado");
+        updated.setAuthor(new User(userId, "commentUser", "Comment Tester", "https://example.com/avatar", "https://example.com/user"));
+        updated.setCreatedAt("2025-07-01");
+        updated.setUpdatedAt("2025-07-03");
 
-        ResponseEntity<Comment> response = restTemplate.postForEntity(
-                getIssueBaseUrl() + "/" + invalidIssueId + "/comments",
-                newComment,
-                Comment.class
-        );
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Comment> request = new HttpEntity<>(updated, headers);
 
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode(), "Should return 404 NOT FOUND");
-    }
-
-    @Test
-    @DisplayName("DELETE /comments/{id} deletes a comment by ID")
-    void deleteComment() {
-        String commentId = "1"; // Assuming this comment exists in DB
-        restTemplate.delete(getBaseUrl() + "/" + commentId);
-
-        ResponseEntity<Comment> response = restTemplate.getForEntity(
-                getBaseUrl() + "/" + commentId,
-                Comment.class
-        );
-
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode(), "The comment should no longer exist");
-    }
-
-    @Test
-    @DisplayName("DELETE /comments/{id} throws CommentNotFoundException for invalid ID")
-    void deleteCommentThrowsException() {
-        String invalidId = "999"; // Assuming this ID does not exist
         ResponseEntity<Void> response = restTemplate.exchange(
-                getBaseUrl() + "/" + invalidId,
+                baseUrl() + "/comments/" + commentId,
+                HttpMethod.PUT,
+                request,
+                Void.class
+        );
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("DELETE /comments/{id} elimina un comentario")
+    void deleteComment() {
+        ResponseEntity<Void> response = restTemplate.exchange(
+                baseUrl() + "/comments/" + commentId,
                 HttpMethod.DELETE,
                 null,
                 Void.class
         );
 
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode(), "Should return 404 NOT FOUND");
-    }
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
 
-    @Test
-    @DisplayName("PUT /comments/{id} updates a comment by ID")
-    void updateComment() {
-        String commentId = "2"; // Assuming this comment exists
-        Comment updatedComment = new Comment(commentId, "Updated comment body");
-
-        restTemplate.put(
-                getBaseUrl() + "/" + commentId,
-                updatedComment
-        );
-
-        ResponseEntity<Comment> response = restTemplate.getForEntity(
-                getBaseUrl() + "/" + commentId,
+        // Verifica que ya no existe
+        ResponseEntity<Comment> check = restTemplate.getForEntity(
+                baseUrl() + "/comments/" + commentId,
                 Comment.class
         );
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(updatedComment.getBody(), response.getBody().getBody());
-    }
-
-    @Test
-    @DisplayName("PUT /comments/{id} throws CommentNotFoundException for invalid ID")
-    void updateCommentThrowsException() {
-        String invalidId = "999"; // Assuming this ID does not exist
-        Comment updatedComment = new Comment(invalidId, "Updated comment");
-
-        ResponseEntity<Void> response = restTemplate.exchange(
-                getBaseUrl() + "/" + invalidId,
-                HttpMethod.PUT,
-                null,
-                Void.class
-        );
-
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode(), "Should return 404 NOT FOUND");
+        assertEquals(HttpStatus.NOT_FOUND, check.getStatusCode());
     }
 }

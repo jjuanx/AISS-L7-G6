@@ -1,6 +1,8 @@
-package aiss.gitminer.controller;
+package aiss.gitminer.gitminer.controller;
 
+import aiss.gitminer.controller.IssueController;
 import aiss.gitminer.model.Issue;
+import aiss.gitminer.model.Project;
 import aiss.gitminer.repositories.IssueRepository;
 import aiss.gitminer.repositories.ProjectRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,6 +12,9 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -39,22 +44,23 @@ class IssueControllerTest {
 
     @BeforeEach
     void setUp() {
-        sampleIssue = new Issue("Sample Title", "Sample description", "open", Collections.emptyList(), null, Collections.emptyList());
+        sampleIssue = new Issue("Sample Title", "Sample description", "open", Collections.emptyList(), null, null,  Collections.emptyList());
         sampleIssue.setId("123");
     }
 
+
     @Test
     void getAllIssues() throws Exception {
-        // Configuración del mock
-        Mockito.when(issueRepository.findAll()).thenReturn(Collections.singletonList(sampleIssue));
+        Page<Issue> mockPage = new PageImpl<>(Collections.singletonList(sampleIssue));
+        Mockito.when(issueRepository.findAll(Mockito.any(PageRequest.class))).thenReturn(mockPage);
 
-        // Solicitud y verificación
         mockMvc.perform(get("/gitminer/issues"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$[0].id").value(sampleIssue.getId()))
                 .andExpect(jsonPath("$[0].title").value(sampleIssue.getTitle()));
     }
+
 
     @Test
     void getIssueById() throws Exception {
@@ -121,16 +127,17 @@ class IssueControllerTest {
     void updateIssue() throws Exception {
         // Mock del issue existente
         Issue existingIssue = new Issue("oldTitle", "oldDescription", "open",
-                Collections.emptyList(), null, Collections.emptyList());
+                Collections.emptyList(), null, null, Collections.emptyList());
         existingIssue.setId("123"); // ID del issue existente
 
         // Mock del issue actualizado
         Issue updatedIssue = new Issue("newTitle", "newDescription", "closed",
-                Collections.emptyList(), null, Collections.emptyList());
+                Collections.emptyList(), null, null,  Collections.emptyList());
         updatedIssue.setId("123"); // El ID no cambia
 
         // Configuración de los mocks
-        Mockito.when(issueRepository.existsById("123")).thenReturn(true); // Confirmar que existe el ID
+        Mockito.when(issueRepository.findById("123")).thenReturn(Optional.of(existingIssue));
+        // Confirmar que existe el ID
         Mockito.when(issueRepository.save(Mockito.any(Issue.class))).thenReturn(updatedIssue); // Mock del guardado
 
         // Solicitud HTTP con el contenido del issue actualizado
@@ -158,8 +165,10 @@ class IssueControllerTest {
 
     @Test
     void deleteIssue() throws Exception {
-        // Método tal y como se solicitó dejarlo tal cual
-        Mockito.when(issueRepository.existsById("123")).thenReturn(true);
+        Project mockProject = new Project(); // Ajusta campos si es necesario
+        mockProject.setId("project1");
+
+        Mockito.when(projectRepository.findById("project1")).thenReturn(Optional.of(mockProject));
 
         mockMvc.perform(delete("/gitminer/issues/123"))
                 .andExpect(status().isNoContent());

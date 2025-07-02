@@ -179,6 +179,7 @@ public class IssueController {
                 issue.getState(),
                 issue.getLabels(),
                 issue.getId(),
+                issue.getVotes(),
                 issue.getAuthor(),
                 issue.getComments()
         );
@@ -254,8 +255,12 @@ public class IssueController {
         _issue.setState(issue.getState());
         _issue.setLabels(issue.getLabels());
         _issue.setDescription(issue.getDescription());
+        _issue.setVotes(issue.getVotes());
         _issue.setTitle(issue.getTitle());
         _issue.setVotes(issue.getVotes());
+        _issue.setAuthor(issue.getAuthor());
+        _issue.setComments(issue.getComments());
+        _issue.setAssignee(issue.getAssignee());
         if(_issue.getState().equals("closed")){
             _issue.setClosedAt(LocalDateTime.now().toString());
         }

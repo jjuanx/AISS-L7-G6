@@ -1,117 +1,108 @@
-package aiss.gitminer.controller;
+package aiss.gitminer.gitminer.controller;
 
 import aiss.gitminer.model.Project;
-import aiss.gitminer.repositories.ProjectRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.dao.DataAccessException;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.*;
 
-import java.util.Collections;
-import java.util.Optional;
+import java.util.ArrayList;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.junit.jupiter.api.Assertions.*;
 
-@WebMvcTest(ProjectController.class)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class ProjectControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockBean
-    private ProjectRepository projectRepository;
+    @LocalServerPort
+    private int port;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private TestRestTemplate restTemplate;
 
-    private Project sampleProject;
+    private String baseUrl() {
+        return "http://localhost:" + port + "/gitminer/projects";
+    }
+
+    private Project createProject(String id, String name) {
+        Project project = new Project();
+        project.setId(id);
+        project.setName(name);
+        project.setWebUrl("https://example.com/" + id);
+        project.setCommits(new ArrayList<>());
+        return project;
+    }
 
     @BeforeEach
     void setUp() {
-        sampleProject = new Project();
-        sampleProject.setId("p1");
-        sampleProject.setName("Sample Project");
-        sampleProject.setWebUrl("http://example.com/projects/p1");
+        restTemplate.postForEntity(baseUrl(), createProject("p1", "Sample Project"), Project.class);
     }
 
     @Test
-    void getAllProjects() throws Exception {
-        Mockito.when(projectRepository.findAll()).thenReturn(Collections.singletonList(sampleProject));
-
-        mockMvc.perform(get("/gitminer/projects"))
-                .andExpect(status().isOk())
-                .andExpect(content().json(objectMapper.writeValueAsString(Collections.singletonList(sampleProject))));
+    @DisplayName("GET /projects should return all projects")
+    void getAllProjects() {
+        ResponseEntity<Project[]> response = restTemplate.getForEntity(baseUrl(), Project[].class);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().length >= 1);
     }
 
     @Test
-    void getProjectById() throws Exception {
-        Mockito.when(projectRepository.findById("p1")).thenReturn(Optional.of(sampleProject));
-
-        mockMvc.perform(get("/gitminer/projects/p1"))
-                .andExpect(status().isOk())
-                .andExpect(content().json(objectMapper.writeValueAsString(sampleProject)));
+    @DisplayName("GET /projects/{id} should return a project by ID")
+    void getProjectById() {
+        ResponseEntity<Project> response = restTemplate.getForEntity(baseUrl() + "/p1", Project.class);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("p1", response.getBody().getId());
+        assertEquals("Sample Project", response.getBody().getName());
     }
 
     @Test
-    void getProjectByIdNotFound() throws Exception {
-        Mockito.when(projectRepository.findById("invalid-id")).thenReturn(Optional.empty());
-
-        mockMvc.perform(get("/gitminer/projects/invalid-id"))
-                .andExpect(status().isNotFound());
+    @DisplayName("GET /projects/{id} should return 404 if not found")
+    void getProjectByIdNotFound() {
+        ResponseEntity<Project> response = restTemplate.getForEntity(baseUrl() + "/invalid-id", Project.class);
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
     }
 
     @Test
-    void createProject() throws Exception {
-        Mockito.when(projectRepository.save(any(Project.class))).thenReturn(sampleProject);
+    @DisplayName("POST /projects should create a new project")
+    void createProject() {
+        Project newProject = createProject("p2", "New Project");
+        ResponseEntity<Project> response = restTemplate.postForEntity(baseUrl(), newProject, Project.class);
 
-        mockMvc.perform(post("/gitminer/projects")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(sampleProject)))
-                .andExpect(status().isCreated())
-                .andExpect(content().json(objectMapper.writeValueAsString(sampleProject)));
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("p2", response.getBody().getId());
+        assertEquals("New Project", response.getBody().getName());
     }
 
     @Test
-    void createProjectValidationFails() throws Exception {
-        Project invalidProject = new Project();
-        invalidProject.setId("p2");
-        invalidProject.setName("");
-        invalidProject.setWebUrl("http://example.com/projects/p2");
-
-        mockMvc.perform(post("/gitminer/projects")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalidProject)))
-                .andExpect(status().isBadRequest());
+    @DisplayName("POST /projects should return 400 for invalid data")
+    void createProjectValidationFails() {
+        Project invalid = createProject("p3", "");
+        ResponseEntity<String> response = restTemplate.postForEntity(baseUrl(), invalid, String.class);
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
     }
 
     @Test
-    void createProjectInternalServerError() throws Exception {
-        Mockito.when(projectRepository.save(any(Project.class)))
-                .thenThrow(new DataAccessException("Database error") {});
+    @DisplayName("DELETE /projects/{id} should delete existing project")
+    void deleteProject() {
+        ResponseEntity<Void> response = restTemplate.exchange(
+                baseUrl() + "/p1", HttpMethod.DELETE, null, Void.class);
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
 
+        ResponseEntity<Project> verify = restTemplate.getForEntity(baseUrl() + "/p1", Project.class);
+        assertEquals(HttpStatus.NOT_FOUND, verify.getStatusCode());
     }
 
     @Test
-    void deleteProject() throws Exception {
-        Mockito.when(projectRepository.existsById("p1")).thenReturn(true);
-
-        mockMvc.perform(delete("/gitminer/projects/p1"))
-                .andExpect(status().isNoContent());
-    }
-
-    @Test
-    void deleteProjectNotFound() throws Exception {
-        Mockito.when(projectRepository.existsById("invalid-id")).thenReturn(false);
-
-        mockMvc.perform(delete("/gitminer/projects/invalid-id"))
-                .andExpect(status().isNotFound());
+    @DisplayName("DELETE /projects/{id} should return 404 if not found")
+    void deleteProjectNotFound() {
+        ResponseEntity<Void> response = restTemplate.exchange(
+                baseUrl() + "/does-not-exist", HttpMethod.DELETE, null, Void.class);
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
     }
 }

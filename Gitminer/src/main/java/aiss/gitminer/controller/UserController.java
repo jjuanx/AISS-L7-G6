@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -107,7 +108,7 @@ public class UserController {
     })
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping("/{id}")
-    public void deleteUser(@Parameter(description = "id of user to be deleted", required = true)@PathVariable String id) throws UserNotFoundException {
+    public void deleteUser(@PathVariable String id) throws UserNotFoundException {
         if (userRepository.existsById(id)) {
             User user = userRepository.findById(id).get();
             List<Issue> issues = issueRepository.findAll()

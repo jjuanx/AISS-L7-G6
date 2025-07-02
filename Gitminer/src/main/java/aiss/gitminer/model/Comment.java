@@ -25,7 +25,7 @@ public class Comment {
 
     @JsonProperty("author")
     @JoinColumn(name = "author_id", referencedColumnName = "id")
-    @OneToOne(cascade=CascadeType.ALL)
+    @OneToOne(cascade=CascadeType.MERGE)
     private User author;
 
     @JsonProperty("created_at")

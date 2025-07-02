@@ -55,7 +55,7 @@ public class CommentController {
     public List<Comment> getAllComments(
             @Parameter(description = "Page number to be retrieved") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Number of projects per page") @RequestParam(defaultValue = "10") int size,
-            @Parameter(description = "attribute to be filtered") @RequestParam(required = false) String author,
+            @Parameter(description = "attribute to be filtered") @RequestParam(required = false) String authorId,
             @Parameter(description = "order of the request retrieved") @RequestParam(required = false) String order
     ) {
         Pageable paging;
@@ -70,8 +70,8 @@ public class CommentController {
             paging = PageRequest.of(page, size);
         }
         Page<Comment> pageComments;
-        if (author != null)
-            pageComments = commentRepository.findByAuthor(author, paging);
+        if (authorId != null)
+            pageComments = commentRepository.findByAuthorId(authorId, paging);
         else
             pageComments = commentRepository.findAll(paging);
         return pageComments.getContent();
@@ -198,9 +198,6 @@ public class CommentController {
     @DeleteMapping("/comments/{id}")
     public void deleteComment(@Parameter(description = "id of comment to be deleted", required = true) @PathVariable String id) throws CommentNotFoundException {
         if(commentRepository.existsById(id)) {
-            Comment comment = commentRepository.findById(id).get();
-            comment.setAuthor(null);
-            commentRepository.save(comment);
             commentRepository.deleteById(id);
         }else{
             throw new CommentNotFoundException();
